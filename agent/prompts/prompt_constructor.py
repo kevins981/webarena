@@ -75,6 +75,30 @@ class PromptConstructor(object):
                 raise ValueError(
                     f"OpenAI models do not support mode {self.lm_config.mode}"
                 )
+        elif "centml" in self.lm_config.provider:
+            if self.lm_config.mode == "chat":
+                message = [{"role": "system", "content": intro}]
+                for (x, y) in examples:
+                    message.append(
+                        {
+                            "role": "system",
+                            "name": "example_user",
+                            "content": x,
+                        }
+                    )
+                    message.append(
+                        {
+                            "role": "system",
+                            "name": "example_assistant",
+                            "content": y,
+                        }
+                    )
+                message.append({"role": "user", "content": current})
+                return message
+            else:
+                raise ValueError(
+                    f"CentML models do not support mode {self.lm_config.mode}"
+                )
         elif "huggingface" in self.lm_config.provider:
             # https://huggingface.co/blog/llama2#how-to-prompt-llama-2
             # https://github.com/facebookresearch/llama/blob/main/llama/generation.py#L320

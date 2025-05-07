@@ -2,6 +2,7 @@ import argparse
 from typing import Any
 
 from llms import (
+    generate_from_centml_chat_completion,
     generate_from_huggingface_completion,
     generate_from_openai_chat_completion,
     generate_from_openai_completion,
@@ -14,6 +15,7 @@ APIInput = str | list[Any] | dict[str, Any]
 def call_llm(
     lm_config: lm_config.LMConfig,
     prompt: APIInput,
+    client,
 ) -> str:
     response: str
     if lm_config.provider == "openai":
@@ -51,6 +53,20 @@ def call_llm(
             top_p=lm_config.gen_config["top_p"],
             stop_sequences=lm_config.gen_config["stop_sequences"],
             max_new_tokens=lm_config.gen_config["max_new_tokens"],
+        )
+    elif lm_config.provider == "centml":
+        assert isinstance(prompt, list)
+        assert client is not None
+        print("== call_llm using centml API ")
+        response = generate_from_centml_chat_completion(
+            client=client,
+            messages=prompt,
+            model=lm_config.model,
+            temperature=lm_config.gen_config["temperature"],
+            top_p=lm_config.gen_config["top_p"],
+            context_length=lm_config.gen_config["context_length"],
+            max_tokens=lm_config.gen_config["max_tokens"],
+            stop_token=None
         )
     else:
         raise NotImplementedError(

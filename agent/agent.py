@@ -24,6 +24,8 @@ from llms import (
 )
 from llms.tokenizers import Tokenizer
 
+import os
+from openai import OpenAI
 
 class Agent:
     """Base class for the agent"""
@@ -111,6 +113,16 @@ class PromptAgent(Agent):
         self.lm_config = lm_config
         self.prompt_constructor = prompt_constructor
         self.action_set_tag = action_set_tag
+        centml_api_key = os.getenv("CENTML_API_KEY")  # Ensure the CENTML_API_KEY environment variable is set
+        if not centml_api_key:
+            raise ValueError("CENTML_API_KEY environment variable is not set.")
+   
+        self.client = OpenAI(
+            base_url="https://api.centml.com/openai/v1",
+            api_key=centml_api_key
+        )
+   
+        print("[INFO] Created CentML client")
 
     def set_action_set_tag(self, tag: str) -> None:
         self.action_set_tag = tag
@@ -119,13 +131,14 @@ class PromptAgent(Agent):
     def next_action(
         self, trajectory: Trajectory, intent: str, meta_data: dict[str, Any]
     ) -> Action:
+        print("=== in agent next_action")
         prompt = self.prompt_constructor.construct(
             trajectory, intent, meta_data
         )
         lm_config = self.lm_config
         n = 0
         while True:
-            response = call_llm(lm_config, prompt)
+            response = call_llm(lm_config, prompt, self.client)
             force_prefix = self.prompt_constructor.instruction[
                 "meta_data"
             ].get("force_prefix", "")
