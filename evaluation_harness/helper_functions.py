@@ -19,6 +19,13 @@ from llms.providers.openai_utils import (
     generate_from_openai_chat_completion,
 )
 
+from llms.providers.centml_utils import (
+    generate_from_centml_chat_completion,
+)
+
+import os
+from openai import OpenAI
+
 
 def shopping_get_auth_token() -> str:
     response = requests.post(
@@ -158,14 +165,29 @@ def llm_fuzzy_match(pred: str, reference: str, question: str) -> float:
         {"role": "user", "content": message},
     ]
 
-    response = generate_from_openai_chat_completion(
-        model="gpt-4-1106-preview",
+    centml_api_key = os.getenv("CENTML_API_KEY")  # Ensure the CENTML_API_KEY environment variable is set
+    if not centml_api_key:
+        raise ValueError("CENTML_API_KEY environment variable is not set.")
+   
+    client = OpenAI(
+        base_url="https://api.centml.com/openai/v1",
+        api_key=centml_api_key
+    )
+   
+    print("[INFO] Created CentML client for fuzzy match")
+
+    response = generate_from_centml_chat_completion(
+        client=client,
+        model="deepseek-ai/DeepSeek-V3-0324",
         messages=messages,
         temperature=0,
         max_tokens=768,
         top_p=1.0,
         context_length=0,
     ).lower()
+
+    print("[INFO] CentML fuzzy match out ", response)
+    
     if "partially correct" in response or "incorrect" in response:
         return 0.0
     else:
