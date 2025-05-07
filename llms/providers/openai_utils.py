@@ -10,51 +10,8 @@ from typing import Any
 
 import aiolimiter
 import openai
-import openai.error
 from tqdm.asyncio import tqdm_asyncio
 
-
-def retry_with_exponential_backoff(  # type: ignore
-    func,
-    initial_delay: float = 1,
-    exponential_base: float = 2,
-    jitter: bool = True,
-    max_retries: int = 3,
-    errors: tuple[Any] = (openai.error.RateLimitError,),
-):
-    """Retry a function with exponential backoff."""
-
-    def wrapper(*args, **kwargs):  # type: ignore
-        # Initialize variables
-        num_retries = 0
-        delay = initial_delay
-
-        # Loop until a successful response or max_retries is hit or an exception is raised
-        while True:
-            try:
-                return func(*args, **kwargs)
-            # Retry on specified errors
-            except errors as e:
-                # Increment retries
-                num_retries += 1
-
-                # Check if max retries has been reached
-                if num_retries > max_retries:
-                    raise Exception(
-                        f"Maximum number of retries ({max_retries}) exceeded."
-                    )
-
-                # Increment the delay
-                delay *= exponential_base * (1 + jitter * random.random())
-                print(f"Retrying in {delay} seconds.")
-                # Sleep for the delay
-                time.sleep(delay)
-
-            # Raise exceptions for any errors not specified
-            except Exception as e:
-                raise e
-
-    return wrapper
 
 
 async def _throttled_openai_completion_acreate(
@@ -131,7 +88,6 @@ async def agenerate_from_openai_completion(
     return [x["choices"][0]["text"] for x in responses]
 
 
-@retry_with_exponential_backoff
 def generate_from_openai_completion(
     prompt: str,
     engine: str,
@@ -236,7 +192,6 @@ async def agenerate_from_openai_chat_completion(
     return [x["choices"][0]["message"]["content"] for x in responses]
 
 
-@retry_with_exponential_backoff
 def generate_from_openai_chat_completion(
     messages: list[dict[str, str]],
     model: str,
@@ -252,6 +207,7 @@ def generate_from_openai_chat_completion(
         )
     openai.api_key = os.environ["OPENAI_API_KEY"]
     openai.organization = os.environ.get("OPENAI_ORGANIZATION", "")
+    print("==== openai generate", messages[:200])
 
     response = openai.ChatCompletion.create(  # type: ignore
         model=model,
@@ -262,10 +218,10 @@ def generate_from_openai_chat_completion(
         stop=[stop_token] if stop_token else None,
     )
     answer: str = response["choices"][0]["message"]["content"]
+    print("==== openai generate answer ", answer)
     return answer
 
 
-@retry_with_exponential_backoff
 # debug only
 def fake_generate_from_openai_chat_completion(
     messages: list[dict[str, str]],
